@@ -37,8 +37,9 @@ jobs:
           make package/luci-app-blackhole/compile V=s &&
           make package/index V=s &&
           
-          # Copy everything to the mounted volume
-          cp -r bin/packages/* /custom_feed/artifacts/
+          # Copy everything to the mounted volume, maintaining arch folder but removing 'custom' subfolder
+          mkdir -p /custom_feed/artifacts/aarch64_cortex-a53
+          cp -r bin/packages/aarch64_cortex-a53/custom/* /custom_feed/artifacts/aarch64_cortex-a53/
         "
 
     - name: Setup Pages
