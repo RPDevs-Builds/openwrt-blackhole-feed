@@ -14,7 +14,11 @@ PKG_LICENSE_FILES:=LICENSE
 
 PKG_BUILD_DEPENDS:=golang/host
 include $(INCLUDE_DIR)/package.mk
-include $(INCLUDE_DIR)/golang-package.mk
+
+# We must include golang-package.mk from the feed, but it has internal relative inclusions
+# that assume it's in the main include directory. 
+# We'll use the symlink created in the workflow to include it.
+-include $(INCLUDE_DIR)/golang-package.mk
 
 define Package/blackhole
   SECTION:=utils
@@ -32,17 +36,20 @@ endef
 GO_PKG:=github.com/IamRPDev/blackhole-server
 GO_PKG_BUILD_PKG:=github.com/IamRPDev/blackhole-server/cmd/blackhole
 
+# Fallback in case golang-package.mk inclusion fails or doesn't define standard macros
+ifndef GoPackage/Build/Compile
 define Build/Compile
-	$(call GoPackage/Build/Compile)
+	$(STAGING_DIR_HOST)/bin/go build -o $(PKG_BUILD_DIR)/blackhole $(GO_PKG_BUILD_PKG)
 endef
+endif
 
 define Package/blackhole/install
-	$(call GoPackage/Package/Install/Bin,$(1))
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/blackhole $(1)/usr/bin/blackhole
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/openwrt/blackhole.config $(1)/etc/config/blackhole
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/openwrt/blackhole.init $(1)/etc/init.d/blackhole
 endef
 
-$(eval $(call GoPackage,blackhole))
 $(eval $(call BuildPackage,blackhole))

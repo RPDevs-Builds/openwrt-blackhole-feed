@@ -39,9 +39,11 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install golang
           
-          # Explicitly link golang-package.mk into include directory
+          # CRITICAL FIX: Link ALL golang files into the include directory
+          # Standard golang-package.mk expects golang-values.mk in the same folder
           mkdir -p include
           ln -sf ../feeds/packages/lang/golang/golang-package.mk include/golang-package.mk
+          ln -sf ../feeds/packages/lang/golang/golang-values.mk include/golang-values.mk
           
           # Add and install custom feed
           echo 'src-link custom /custom_feed' >> feeds.conf.default
@@ -54,16 +56,9 @@ jobs:
           echo 'CONFIG_PACKAGE_luci-app-blackhole=y' >> .config
           make defconfig
           
-          # Diagnostic: check if packages are selected
-          grep -E 'CONFIG_PACKAGE_blackhole|CONFIG_PACKAGE_luci-app-blackhole' .config
-          
           # Build packages
           make package/blackhole/compile V=s || (echo 'Blackhole build failed' && exit 1)
           make package/luci-app-blackhole/compile V=s || (echo 'LuCI app build failed' && exit 1)
-          
-          # Find all .ipk files to see where they are
-          echo 'All generated IPK files:'
-          find bin/packages -name '*.ipk'
           
           # Index packages
           [ -x ./staging_dir/host/bin/usign ] && [ ! -f key-build ] && ./staging_dir/host/bin/usign -G -s ./key-build -p ./key-build.pub -c 'Build key'
