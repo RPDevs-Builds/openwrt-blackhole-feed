@@ -18,13 +18,23 @@ jobs:
     - name: Checkout Feed
       uses: actions/checkout@v4
 
+    - name: Cache Go Modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
     - name: Build Packages and Index
       run: |
         # Pre-create artifacts and set permissions
         mkdir -p artifacts
         chmod -R a+rwX artifacts
         
-        docker run --rm -v ${{ github.workspace }}:/custom_feed openwrt/sdk:aarch64_cortex-a53-snapshot bash -c "
+        docker run --rm -v ${{ github.workspace }}:/custom_feed -e GOCACHE=/custom_feed/.gocache openwrt/sdk:aarch64_cortex-a53-snapshot bash -c "
           # Update and install feeds
           ./scripts/feeds update -a
           ./scripts/feeds install golang
@@ -40,13 +50,10 @@ jobs:
           make package/luci-app-blackhole/compile V=s
           
           # Index packages
-          # If usign exists, use it to create a key if missing
           [ -x ./staging_dir/host/bin/usign ] && [ ! -f key-build ] && ./staging_dir/host/bin/usign -G -s ./key-build -p ./key-build.pub -c 'Build key'
-          
-          # Generate index - disable signing to avoid errors
           make package/index V=s CONFIG_SIGNED_PACKAGES=
           
-          # Copy artifacts (using find to be safe)
+          # Copy artifacts
           mkdir -p /custom_feed/artifacts/aarch64_cortex-a53
           find bin/packages/aarch64_cortex-a53/custom/ -name '*.ipk' -exec cp {} /custom_feed/artifacts/aarch64_cortex-a53/ \;
           find bin/packages/aarch64_cortex-a53/custom/ -name 'Packages*' -exec cp {} /custom_feed/artifacts/aarch64_cortex-a53/ \;
