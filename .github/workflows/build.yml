@@ -22,24 +22,27 @@ jobs:
       run: |
         mkdir -p artifacts
         docker run --rm -v ${{ github.workspace }}:/custom_feed openwrt/sdk:aarch64_cortex-a53-snapshot bash -c "
-          # Initialize environment: update all feeds
-          ./scripts/feeds update -a
+          # Update and install only necessary feeds to avoid long hang times
+          ./scripts/feeds update packages
+          ./scripts/feeds install golang
           
-          # Install all available packages, including the 'packages' feed
-          ./scripts/feeds install -a
+          # Explicitly link golang-package.mk into include directory
+          # This is required because some SDK versions don't symlink it automatically
+          mkdir -p include
+          ln -sf ../feeds/packages/lang/golang/golang-package.mk include/golang-package.mk
           
-          # Configure custom feed
+          # Add and install custom feed
           echo 'src-link custom /custom_feed' >> feeds.conf.default
           ./scripts/feeds update custom
-          ./scripts/feeds install -a
+          ./scripts/feeds install blackhole luci-app-blackhole
           
-          # Build process
+          # Build
           make defconfig
           make package/blackhole/compile V=s
           make package/luci-app-blackhole/compile V=s
           make package/index V=s
           
-          # Copy results
+          # Copy artifacts
           mkdir -p /custom_feed/artifacts/aarch64_cortex-a53
           cp -r bin/packages/aarch64_cortex-a53/custom/* /custom_feed/artifacts/aarch64_cortex-a53/
         "
