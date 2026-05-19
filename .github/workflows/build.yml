@@ -22,16 +22,16 @@ jobs:
       run: |
         mkdir -p artifacts
         docker run --rm -v ${{ github.workspace }}:/custom_feed openwrt/sdk:aarch64_cortex-a53-snapshot bash -c "
-          # Initialize and update feeds
+          # Update and install feeds
           ./scripts/feeds update -a &&
           ./scripts/feeds install -a &&
           
           # Add custom feed
           echo 'src-link custom /custom_feed' >> feeds.conf.default &&
           ./scripts/feeds update custom &&
-          ./scripts/feeds install -a &&
+          ./scripts/feeds install blackhole luci-app-blackhole &&
           
-          # Build
+          # Configure and build
           make defconfig &&
           make package/blackhole/compile V=s &&
           make package/luci-app-blackhole/compile V=s &&
