@@ -20,14 +20,16 @@ jobs:
 
     - name: Build Packages and Index
       run: |
+        # Pre-create artifacts and set permissions to avoid Docker UID mismatches
         mkdir -p artifacts
+        chmod -R a+rwX artifacts
+        
         docker run --rm -v ${{ github.workspace }}:/custom_feed openwrt/sdk:aarch64_cortex-a53-snapshot bash -c "
-          # Update and install only necessary feeds to avoid long hang times
+          # Update and install feeds
           ./scripts/feeds update packages
           ./scripts/feeds install golang
           
-          # Explicitly link golang-package.mk into include directory
-          # This is required because some SDK versions don't symlink it automatically
+          # Explicitly link golang-package.mk
           mkdir -p include
           ln -sf ../feeds/packages/lang/golang/golang-package.mk include/golang-package.mk
           
@@ -36,11 +38,16 @@ jobs:
           ./scripts/feeds update custom
           ./scripts/feeds install blackhole luci-app-blackhole
           
+          # Generate build key to allow package indexing to succeed
+          [ -f key-build ] || ./staging_dir/host/bin/usign -G -s ./key-build -p ./key-build.pub -c \"Build key\"
+          
           # Build
           make defconfig
           make package/blackhole/compile V=s
           make package/luci-app-blackhole/compile V=s
-          make package/index V=s
+          
+          # Index packages (disable signing to avoid key issues if usign fails)
+          make package/index V=s CONFIG_SIGNED_PACKAGES=
           
           # Copy artifacts
           mkdir -p /custom_feed/artifacts/aarch64_cortex-a53
