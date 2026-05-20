@@ -61,23 +61,19 @@ jobs:
           cp -a /custom_feed/workspace_cache/feeds/* ./feeds/ 2>/dev/null || true
           cp -a /custom_feed/workspace_cache/staging_dir_host/* ./staging_dir/host/ 2>/dev/null || true
           
-          # --- BUILD PHASE ---
-          # Update and install feeds
+          # Build PHASE
+          rm -rf bin/packages
           ./scripts/feeds update -a
           ./scripts/feeds install golang
           
-          # CRITICAL FIX: Link ALL golang files into the include directory
-          # Standard golang-package.mk expects golang-values.mk in the same folder
           mkdir -p include
           ln -sf ../feeds/packages/lang/golang/golang-package.mk include/golang-package.mk
           ln -sf ../feeds/packages/lang/golang/golang-values.mk include/golang-values.mk
           
-          # Add and install custom feed
           echo 'src-link custom /custom_feed' >> feeds.conf.default
           ./scripts/feeds update custom
           ./scripts/feeds install -a
           
-          # Select our packages in .config
           make defconfig
           echo 'CONFIG_PACKAGE_blackhole=y' >> .config
           echo 'CONFIG_PACKAGE_luci-app-blackhole=y' >> .config
@@ -94,11 +90,22 @@ jobs:
           # Copy artifacts
           mkdir -p /custom_feed/artifacts/aarch64_cortex-a53
           cp -v /custom_feed/index.html /custom_feed/artifacts/index.html
-          find bin/packages -name '*.ipk' -exec cp -v {} /custom_feed/artifacts/aarch64_cortex-a53/ \;
+          
+          # Find our specific IPKs and move them
+          find bin/packages -name 'blackhole*.ipk' -exec cp -v {} /custom_feed/artifacts/aarch64_cortex-a53/ \;
+          find bin/packages -name 'luci-app-blackhole*.ipk' -exec cp -v {} /custom_feed/artifacts/aarch64_cortex-a53/ \;
+          
+          # Copy the index files specifically from the custom feed output
+          # The custom feed index is usually in bin/packages/aarch64_cortex-a53/custom/
+          # We'll copy all Packages files found in bin/packages to be safe, but we'll rename Packages.gz to APKINDEX.tar.gz for apk compatibility
           find bin/packages -name 'Packages*' -exec cp -v {} /custom_feed/artifacts/aarch64_cortex-a53/ \;
+          cd /custom_feed/artifacts/aarch64_cortex-a53/
+          [ -f Packages.gz ] && cp Packages.gz APKINDEX.tar.gz
           
           # Final check: fail if no IPKs found
-          ls /custom_feed/artifacts/aarch64_cortex-a53/*.ipk || { echo 'No IPK files found!'; exit 1; }
+          ls *.ipk || { echo 'No IPK files found!'; exit 1; }
+          # Verify index is not empty
+          [ -s Packages ] || { echo 'Packages index is empty!'; exit 1; }
           
           # List files for verification
           echo 'Contents of artifacts:'
