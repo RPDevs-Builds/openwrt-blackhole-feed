@@ -109,7 +109,8 @@ jobs:
           echo 'CONFIG_PACKAGE_golang=y' >> .config
           make defconfig
           
-          # Build golang host tools
+          # Build golang host tools - force clean to ensure it's actually built
+          make package/golang/clean
           make package/golang/compile V=s || { echo 'Golang build failed'; exit 1; }
           
           # Locating go binary for debugging
