@@ -77,8 +77,8 @@ jobs:
           # Build PHASE
           rm -rf bin/packages
           
-          # Only update what we need
-          ./scripts/feeds update packages
+          # Update required feeds
+          ./scripts/feeds update packages luci
           ./scripts/feeds install golang
           
           # Force link into include
