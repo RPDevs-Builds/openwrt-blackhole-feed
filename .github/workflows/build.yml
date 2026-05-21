@@ -55,7 +55,7 @@ jobs:
         chmod -R a+rwX artifacts workspace_cache .gocache
         
         docker run --rm -v ${{ github.workspace }}:/custom_feed -e GOCACHE=/custom_feed/.gocache openwrt/sdk:aarch64_cortex-a53-snapshot bash -c "
-          set -e
+          set -ex
           
           function save_cache {
             echo '--- CACHE SAVE PHASE ---'
