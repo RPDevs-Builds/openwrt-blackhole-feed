@@ -11,8 +11,18 @@ PKG_LICENSE_FILES:=LICENSE
 PKG_BUILD_DEPENDS:=golang/host
 include $(INCLUDE_DIR)/package.mk
 
-# Link to golang-package.mk
--include $(INCLUDE_DIR)/golang-package.mk
+# Find golang-package.mk in common SDK locations
+GOLANG_MK:=$(wildcard $(INCLUDE_DIR)/golang-package.mk)
+ifeq ($(GOLANG_MK),)
+  GOLANG_MK:=$(wildcard $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk)
+endif
+
+ifneq ($(GOLANG_MK),)
+  include $(GOLANG_MK)
+else
+  # Fallback to standard vars if mk file is missing
+  GO_BIN:=$(STAGING_DIR_HOST)/bin/go
+endif
 
 define Package/blackhole
   SECTION:=utils
@@ -39,9 +49,8 @@ endef
 # Explicitly define compilation to avoid any ambiguity with golang-package.mk versions
 define Build/Compile
 	cd $(PKG_BUILD_DIR) && \
-	GOOS=linux \
-	GOARCH=$(ARCH) \
-	$(STAGING_DIR_HOST)/bin/go build -v -o blackhole ./cmd/blackhole
+	$(GO_PKG_VARS) \
+	$(GO_BIN) build -v -o blackhole ./cmd/blackhole
 endef
 
 define Package/blackhole/install

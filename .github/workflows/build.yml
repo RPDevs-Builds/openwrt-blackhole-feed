@@ -66,9 +66,16 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install golang
           
+          # Verify golang installation
+          [ -f feeds/packages/lang/golang/golang-package.mk ] || { echo 'golang-package.mk NOT found in feeds!'; ls -R feeds/packages/lang/golang; }
+          
+          # Force link into include
           mkdir -p include
           ln -sf ../feeds/packages/lang/golang/golang-package.mk include/golang-package.mk
           ln -sf ../feeds/packages/lang/golang/golang-values.mk include/golang-values.mk
+          
+          # Check for go binary (it might be built during package/golang/compile)
+          # But golang/host should provide it if it's a build dependency.
           
           echo 'src-link custom /custom_feed' >> feeds.conf.default
           ./scripts/feeds update custom
@@ -78,6 +85,10 @@ jobs:
           echo 'CONFIG_PACKAGE_blackhole=y' >> .config
           echo 'CONFIG_PACKAGE_luci-app-blackhole=y' >> .config
           make defconfig
+          
+          # List some environment info
+          echo \"Staging host bin contents:\"
+          ls staging_dir/host/bin/ | grep go || true
           
           # Build packages
           make package/blackhole/compile V=s || { echo 'Blackhole build failed'; exit 1; }
